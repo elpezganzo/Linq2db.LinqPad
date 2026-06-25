@@ -20,6 +20,11 @@
 		<ErrorReport>prompt</ErrorReport>
 		<Features>strict</Features>
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<!--These NuGet restore warnings depend on the build environment rather than the code/packages,
+			so they must not break the build via TreatWarningsAsErrors (they stay visible as warnings):
+			NU1507 - multiple package sources are configured together with central package management (corporate feeds)
+			NU1900 - package vulnerability data could not be downloaded (api.nuget.org is blocked by company policy)-->
+		<WarningsNotAsErrors>$(WarningsNotAsErrors);NU1507;NU1900</WarningsNotAsErrors>
 		<ImplicitUsings>enable</ImplicitUsings>
 
 		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
@@ -141,18 +146,29 @@
 		</Page>
 	</ItemGroup>
 
+    <Target Name="ShowBuildInfo" BeforeTargets="Build">
+		<Message Text="----- Configuration: $(Configuration)" Importance="High" />
+		<Message Text="----- Platform: $(Platform)" Importance="High" />
+		<Message Text="----- TargetFramework: $(TargetFramework)" Importance="High" />
+		<Message Text="----- TargetDir: $(TargetDir)" Importance="High" />
+		<Message Text="----- OutputPath: $(OutputPath)" Importance="High" />
+		<Message Text="----- Project Name: $(MSBuildProjectName)" Importance="High" />
+	</Target>
+
 	<Target Name="PostBuild1" AfterTargets="PostBuildEvent" Condition="'$(TargetFramework)' != 'net48'">
-		<Exec Command="$(ProjectDir)..\Build\Pack.cmd $(TargetDir) lpx6" />
+        <CallTarget Targets="ShowBuildInfo" />
+		<Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\Build\Pack.ps1&quot; &quot;$(TargetDir)\&quot; lpx6 $(MSBuildProjectName)" />
 	</Target>
 
 	<Target Name="PostBuild2" AfterTargets="CopySQLiteInteropFiles" Condition="'$(TargetFramework)' == 'net48'">
-		<!--we are trying to deceive DB2 provider here, see UnsafeNativeMethods.DB2Interop.Init() method logic-->
+		<CallTarget Targets="ShowBuildInfo" />
+        <!--we are trying to deceive DB2 provider here, see UnsafeNativeMethods.DB2Interop.Init() method logic-->
 		<Delete Files="$(TargetDir)\IBM.Data.DB2.dll" />
 		<MakeDir Directories="$(TargetDir)\IBM.Data.DB2.DLL_provider" />
 		<Copy SourceFiles="$(PkgIBM_Data_DB_Provider)\build\net451\x64\IBM.Data.DB2.dll" DestinationFiles="$(TargetDir)\IBM.Data.DB2.DLL_provider\x64\IBM.Data.DB2.dll" />
 		<Copy SourceFiles="$(PkgIBM_Data_DB_Provider)\build\net451\x86\IBM.Data.DB2.dll" DestinationFiles="$(TargetDir)\IBM.Data.DB2.DLL_provider\x86\IBM.Data.DB2.dll" />
 
-		<Exec Command="$(ProjectDir)..\Build\Pack.cmd $(TargetDir) lpx" />
+		<Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\Build\Pack.ps1&quot; &quot;$(TargetDir)\&quot; lpx $(MSBuildProjectName)" />
 	</Target>
 
 	<ItemGroup>
